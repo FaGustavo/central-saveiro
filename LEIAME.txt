@@ -1,0 +1,172 @@
+CENTRAL MULTIMIDIA DA SAVEIRO - CHECKPOINT (26/10/2026)
+=======================================================
+
+Aparelho: 8227L_demo (MediaTek AC8227L), Android 8.1, 2 GB RAM, tela 1280x720.
+Chip de som: CD3313 (tipo PT2313). Wi-Fi: so 2.4 GHz (tem Wi-Fi Direct).
+Sem root. Os apps do sistema usam a chave PUBLICA de teste do AOSP, entao
+um app assinado com ela (codigo\platform.*) roda com permissao de sistema.
+
+
+COMO REAPLICAR TUDO (ex.: depois de reset de fabrica)
+------------------------------------------------------
+1. Na central: ativar Opcoes do desenvolvedor > Depuracao USB.
+2. Ligar a central no PC pelo cabo USB.
+3. No PowerShell:
+   powershell -ExecutionPolicy Bypass -File "C:\Users\Fantinel\Documents\Central-Saveiro\APLICAR-TUDO.ps1"
+4. Passos manuais no fim (logo, Wi-Fi, som) - ver abaixo.
+
+Requisitos no PC: ADB em C:\platform-tools\adb.exe.
+Para recompilar o app proprio: Java (JDK 17+) e rodar codigo\build-logocopy.ps1.
+
+
+O QUE FOI FEITO
+---------------
+Desempenho
+ - Animacoes em 0.5x; busca de Wi-Fi/Bluetooth em segundo plano desligada.
+ - Tela "AMOLED": saturacao 1.35 e contraste 1.1 via matriz de cor do
+   SurfaceFlinger (feito pelo app proprio, reaplicado a cada boot pelo vigia):
+     adb shell am start -S -n com.fantinel.logocopy/.Main --es mode tela --ef s 1.35 --ef c 1.1
+   Voltar ao normal: mesmo comando com --ef s 1 --ef c 1
+ - Modo noturno por horario (Luzes > "Modo noturno automatico", Inicio/Fim,
+   padrao 19:00-06:00): a tela escurece por software ate o nivel da barra
+   "Brilho no modo noturno" (5% a 100%). Ao tocar na tela sobe +20% por 8 s.
+   Os LEDs dos botoes seguem o mesmo brilho (e o realce do toque).
+   Transicoes graduais (~0,6 s). Toques detectados por uma janela invisivel
+   de 1 pixel (ACTION_OUTSIDE) criada pelo vigia.
+ - GPS desligado: localizacao em "desativada" e com.autochips.android.atcLocationService
+   desativado (pedia posicao a cada 3 s). Religar: Definicoes > Seguranca e
+   localizacao > Localizacao, e  adb shell pm enable com.autochips.android.atcLocationService
+ - Barra de status escondida em todos os apps (deslizar de cima para ver):
+     settings put global policy_control immersive.status=*
+   Desfazer: settings put global policy_control null
+ - Desativados (pm disable-user): apps do Google (YouTube, Maps, Chrome, Play,
+   GMS etc.), mtklogger (log de depuracao), autocan (CAN), ZLink, DSP antigo
+   (com.hcn.autoeq), launcher antigo (com.android.launcher3), Scan de imagens,
+   GPS Test Plus, Instrucoes, LOGO.
+ - Av In: o app da camera reativa o icone a cada boot, entao a tela Inicio
+   simplesmente ignora o pacote com.auto.hcamera na grade (camera de re mantida).
+ - Icones escondidos (app continua instalado):
+   Musica e Video antigos.
+
+App proprio "LogoCopy" (com.fantinel.logocopy) - apks\LogoCopy.apk
+ - Tela "Inicio" (tela inicial padrao): relogio, cartao com a fonte atual
+   (radio com frequencia, VLC/Bluetooth/Spotify com musica e capa), capa
+   desfocada no fundo, Saveiro neon no cartao, apps grandes e painel "Ajustes"
+   (Definicoes, Bluetooth, Volante, Veiculo, Som, Arquivos). Sem barra de status.
+   Tensao da bateria do carro ao lado da data (lida da placa MCU: "mcu_service",
+   getBattery). Aviso se ficar abaixo de 11,5 V por ~30 s seguidos (no maximo a
+   cada 10 min, feito pelo vigia, vale em qualquer tela): retangulo vermelho 50%
+   cobrindo 80% da tela por 5 s + bip; depois fica um contorno vermelho em volta
+   da medicao na tela inicial ate a tensao voltar.
+   Testar: adb shell am start -S -n com.fantinel.logocopy/.Main --es mode testbat
+   Ver na mao: adb shell dumpsys mcu_service | findstr Battery
+   Cor: tela "Luzes" (em Ajustes). Cor dinamica ligada = a Saveiro neon e os
+   LEDs dos botoes mudam para a cor dominante da capa (ciano sem capa / radio).
+   Desligada = cor fixa escolhida na paleta ou na barra de matiz.
+   Os icones da tela inicial (BT Musica, DiPlay, Radio, Spotify, VLC, Ajustes)
+   sao simbolos brancos (res\drawable\g_*.png) sobre degrade na mesma cor.
+   App novo instalado aparece com o icone original dele.
+   Os LEDs recebem a cor com correcao de gama 2.2 (sem isso o vermelho fica rosado). LEDs via
+   servico "carstatus" setLed(0=todos, r, g, b); manual:
+     adb shell service call carstatus 8 i32 0 i32 R i32 G i32 B
+   Prioridade do cartao: o que esta tocando > o ultimo que tocou (pausado) >
+   radio/ultimo app que pegou o audio.
+ - App "Som": grave, medio, agudo (+-14 dB), frequencia do grave, loudness,
+   subwoofer (liga, nivel, corte), balanco e fader. Fala direto com o chip.
+   Os ajustes voltam sozinhos quando a central liga.
+ - Vigia do z-link: mantem o servico z-link desligado (ele travava a porta
+   USB em modo host e derrubava o ADB).
+ - Comandos uteis (via ADB):
+     am start -n com.fantinel.logocopy/.Main --es mode zlink_on    (religa o z-link)
+     am start -n com.fantinel.logocopy/.Main --es mode comp --es comp PACOTE/CLASSE --ez on true  (mostra icone)
+     am start -n com.fantinel.logocopy/.Main --es mode copy         (copia logo.png do pendrive)
+     am start -n com.fantinel.logocopy/.Main --es mode tz --es tz America/Fortaleza  (fuso)
+   Obs.: se o Main ja estiver aberto, usar "am start -S" (e depois rodar de novo o modo zlink_off).
+
+Radio novo (activity .Radio do app proprio, icone "Radio" na tela inicial)
+ - Comanda o android.radio.RadioPlayer (frequencia, busca, ajuste fino, regua
+   de arrastar, memorias, autoScan, FM/AM). O SOM continua saindo pelo app de
+   fabrica com.hcn.autoradio: se o radio nao for a fonte atual, o app novo abre
+   o de fabrica por um instante e volta (por isso ele nao pode ser desativado).
+ - Capa gerada com a cor da estacao (mesma cor nos LEDs, Saveiro e tela inicial).
+
+Midia nova (activity .Midia, icone "Midia" na tela inicial, substitui o VLC)
+ - Navega a biblioteca do VLC (MediaBrowserService org.videolan.vlc/.PlaybackService):
+   abas Biblioteca (Artistas/Albuns/Faixas/Generos), Inicio, Listas e Videos.
+   Musica toca pelo VLC por tras; o painel direito mostra capa, progresso e
+   controles. Videos: lista os videos do pendrive e abre no player do VLC.
+ - O VLC leva alguns segundos para responder na primeira conexao.
+
+BT Musica nova (activity .BtMusica, icone "BT Musica" na tela inicial)
+ - Le a sessao de midia do Bluetooth (com.android.bluetooth): musica, artista,
+   album, progresso e controles. O Android 8.1 nao recebe a capa pelo
+   Bluetooth, entao: se o Spotify da central estiver espelhando o celular
+   (Spotify Connect) com a mesma musica, usa a capa real dele; senao, capa
+   gerada (cor por album). Com Bluetooth tocando, o cartao da tela inicial
+   mostra o Bluetooth (prioridade sobre o Spotify espelhado). O som sai pelo app
+   de fabrica com.autochips.bluetooth (aberto por um instante se preciso).
+
+Troca de fonte sem abrir apps de fabrica (classe Fonte)
+ - Radio: SourceInfo.onRequestPlayAudio(context do com.hcn.autoradio) + inicia
+   o FMPlugService. Funciona sem abrir a tela antiga.
+ - Bluetooth: pede a fonte, pega o foco de audio e manda play pelo
+   MediaBrowser com.android.bluetooth/.a2dpsink.mbs.A2dpMediaBrowserService.
+   PENDENTE: o play chega ao iPhone, mas a musica volta a pausar.
+ - "Voltar" do Radio, BT Musica e Midia vai sempre para a tela inicial.
+
+Fuso horario
+ - America/Fortaleza (= horario de Brasilia, UTC-3). Nao usar America/Sao_Paulo:
+   o banco de fusos da central e antigo e ainda aplica horario de verao.
+
+Outros apps
+ - Spotify 9.1.94 (apks\). Login: usar o CODIGO enviado por e-mail (a senha
+   nao funciona sem os servicos do Google, que ficam desativados). Depois do
+   login funciona normal sem eles. Otimizado com:
+     adb shell cmd package compile -m speed-profile -f com.spotify.music
+   NAO usar "-m speed" (falta RAM, falha e apaga a compilacao; se acontecer,
+   rodar "-m quicken" para restaurar). Dica: desligar o Canvas nas definicoes.
+ - VLC 3.7.1 (musica + video, capa desfocada no player). Aparece como "Midia"
+   na tela inicial. Otimizado com:
+     adb shell cmd package compile -m speed-profile -f org.videolan.vlc
+ - DiPlay 0.2.21 HUD (CarPlay/Android Auto sem fio). Funciona bem melhor que o
+   ZLink, mas tem um pouco de atraso por causa do Wi-Fi 2.4 GHz.
+
+Logo de abertura
+ - imagens\logo.png (1280x720). Para reaplicar: copiar logo.png para a raiz
+   do pendrive, ligar o pendrive na central e rodar
+     adb shell am start -n com.fantinel.logocopy/.Main --es mode copy
+   Depois, na central: Configuracoes do Veiculo > Logotipo > "Configuracao de
+   logotipo dedicada" e escolher a imagem saveiro.png.
+
+
+PASSOS MANUAIS DEPOIS DO SCRIPT
+-------------------------------
+ - Logo de abertura (acima).
+ - Na central, ESQUECER o Wi-Fi de casa (ele impede o CarPlay sem fio de conectar).
+ - Abrir o app Som e ajustar.
+ - No iPhone: Ajustes > Geral > CarPlay > esquecer o carro antigo e parear pelo DiPlay.
+
+
+COMO DESFAZER
+-------------
+ - Reativar um app:           adb shell pm enable com.pacote
+ - Voltar o launcher antigo:  adb shell pm enable com.android.launcher3
+                              adb shell cmd package set-home-activity com.android.launcher3/com.android.launcher3.Launcher
+ - Voltar o DSP antigo:       adb shell pm enable com.hcn.autoeq
+ - Religar o ZLink:           adb shell pm enable com.zjinnova.zlink  (e modo zlink_on acima)
+
+
+CUIDADOS
+--------
+ - NAO reinstalar por cima um app de sistema original (eles nao tem o codigo
+   dentro do APK). A instalacao falha e o app fica quebrado ate reiniciar.
+ - O equalizador de 12 barras do app DSP original era falso (fazia a media das
+   barras em grave/agudo). Usar o app Som.
+
+
+PASTAS
+------
+ apks\         LogoCopy, VLC, DiPlay
+ imagens\      logo de abertura, Saveiro neon (original e sem fundo)
+ codigo\       codigo-fonte do LogoCopy + chaves de teste do AOSP + script de compilacao
+ ferramentas\  aapt2, d8, zipalign, apksigner, android.jar (SDK 27)

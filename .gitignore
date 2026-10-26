@@ -1,0 +1,12 @@
+# APKs de terceiros (Spotify, VLC, DiPlay) - baixar das fontes oficiais
+apks/*
+!apks/LogoCopy.apk
+
+# ferramentas do Android SDK (aapt2, d8, zipalign, apksigner, android.jar)
+ferramentas/
+
+# foto pessoal do carro (logo de abertura) - fica só no backup local
+imagens/logo.png
+
+# saída de compilação
+codigo/out/

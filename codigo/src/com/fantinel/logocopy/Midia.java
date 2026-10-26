@@ -1,6 +1,7 @@
 package com.fantinel.logocopy;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -17,6 +18,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.SystemClock;
 import android.text.TextUtils;
+import android.util.Log;
 import android.util.LruCache;
 import android.view.Gravity;
 import android.view.View;
@@ -258,6 +260,10 @@ public class Midia extends Activity {
             File interno = new File("/storage/emulated/0/Movies");
             buscar(interno, 0, l);
             java.util.Collections.sort(l, (a, b) -> a.titulo.compareToIgnoreCase(b.titulo));
+            // cópias do mesmo vídeo em outra pasta (mesmo nome e tamanho) aparecem uma vez só
+            for (int i = l.size() - 1; i > 0; i--)
+                if (l.get(i).arquivo.getName().equals(l.get(i - 1).arquivo.getName())
+                        && l.get(i).arquivo.length() == l.get(i - 1).arquivo.length()) l.remove(i);
             h.post(() -> { if (VIDEOS.equals(pilha.get(pilha.size() - 1))) mostrar(l, "Nenhum vídeo no pendrive"); });
         }).start();
     }
@@ -283,13 +289,74 @@ public class Midia extends Activity {
         }
     }
 
+    // Se o VLC está com um vídeo aberto pela tela Mídia (tocando ou pausado em segundo plano),
+    // reabre o player dele nesse vídeo. Devolve false quando não há vídeo (aí abre a biblioteca).
+    static boolean voltarAoVideo(Context c) {
+        try {
+            String video = c.getSharedPreferences("midia", 0).getString("video", null);
+            if (TextUtils.isEmpty(video)) return false;
+            android.media.session.MediaSessionManager m = (android.media.session.MediaSessionManager) c.getSystemService(Context.MEDIA_SESSION_SERVICE);
+            for (MediaController mc : m.getActiveSessions(null)) {
+                if (!VLC.equals(mc.getPackageName())) continue;
+                MediaMetadata md = mc.getMetadata();
+                PlaybackState st = mc.getPlaybackState();
+                if (md == null || st == null) continue;
+                int e = st.getState();
+                if (e != PlaybackState.STATE_PLAYING && e != PlaybackState.STATE_PAUSED) continue;
+                if (!video.equals(md.getString(MediaMetadata.METADATA_KEY_TITLE))) continue;
+                c.startActivity(new Intent("org.videolan.vlc.gui.video.PLAY_FROM_SERVICE")
+                        .setClassName(VLC, "org.videolan.vlc.gui.video.VideoPlayerActivity")
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                return true;
+            }
+        } catch (Throwable t) { Log.e("LogoCopy", "voltar ao video", t); }
+        return false;
+    }
+
+    // Vídeo aberto pelo Mídia: o VLC recebe um arquivo só, então a fila dele tem 1 item e o
+    // "próximo" apenas pausa. Aqui o próximo/anterior é o vizinho na lista da aba Vídeos.
+    // Devolve false se o que toca no VLC não é um vídeo nosso (aí usa o próximo do próprio VLC).
+    static boolean pularVideo(Context c, MediaController mc, int dir) {
+        try {
+            android.content.SharedPreferences p = c.getSharedPreferences("midia", 0);
+            String video = p.getString("video", null), atual = p.getString("arquivo", null);
+            MediaMetadata md = mc.getMetadata();
+            if (TextUtils.isEmpty(video) || atual == null || md == null
+                    || !video.equals(md.getString(MediaMetadata.METADATA_KEY_TITLE))) return false;
+            String[] lista = p.getString("videos", "").split("\n");
+            int i = java.util.Arrays.asList(lista).indexOf(atual);
+            if (i < 0 || lista.length < 2) return false;
+            for (int n = 1; n < lista.length; n++) {   // pula arquivos que sumiram (pendrive trocado)
+                File f = new File(lista[((i + dir * n) % lista.length + lista.length) % lista.length]);
+                if (!f.exists()) continue;
+                guardarVideo(c, f);
+                mc.getTransportControls().playFromUri(Uri.fromFile(f), null);
+                return true;
+            }
+        } catch (Throwable t) { Log.e("LogoCopy", "pular video", t); }
+        return false;
+    }
+
+    // guarda o vídeo atual: título (o VLC usa o nome do arquivo como título) e caminho
+    static void guardarVideo(Context c, File f) {
+        String n = f.getName();
+        c.getSharedPreferences("midia", 0).edit()
+                .putString("video", n.contains(".") ? n.substring(0, n.lastIndexOf('.')) : n)
+                .putString("arquivo", f.getAbsolutePath()).apply();
+    }
+
     void tocar(Item it) {
         if (it == null) return;
         if (it.arquivo != null) {
-            try {
-                startActivity(new Intent(Intent.ACTION_VIEW).setPackage(VLC)
-                        .setDataAndType(Uri.fromFile(it.arquivo), "video/*").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-            } catch (Throwable t) {}
+            StringBuilder sb = new StringBuilder();
+            for (Item x : adapter.itens) if (x.arquivo != null) sb.append(x.arquivo.getAbsolutePath()).append('\n');
+            getSharedPreferences("midia", 0).edit().putString("videos", sb.toString()).apply();
+            guardarVideo(this, it.arquivo);
+            // player próprio (vai para o cartão da Início); o que o Android não abrir vai para o VLC
+            List<File> fs = new ArrayList<>();
+            for (Item x : adapter.itens) if (x.arquivo != null) fs.add(x.arquivo);
+            Video.tocar(this, fs, Math.max(0, fs.indexOf(it.arquivo)));
+            startActivity(new Intent(this, VideoTela.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             return;
         }
         if (it.pasta) { entrar(it.id, it.titulo); return; }
@@ -300,6 +367,17 @@ public class Midia extends Activity {
     Runnable tick = () -> { atualizar(); h.postDelayed(this.tick, 500); };
 
     void atualizar() {
+        if (Video.mp != null) {   // vídeo do player próprio
+            String t = Video.titulo();
+            if (!t.equals(titulo.getText().toString())) titulo.setText(t);
+            artista.setText("Vídeo  •  " + Video.pasta());
+            mostrarCapa(null);
+            play.setKind(Video.tocando() ? Home.Icon.PAUSE : Home.Icon.PLAY);
+            int d = Video.duracao(), p = Video.posicao();
+            barra.setProgress(d > 0 ? (int) ((long) p * 1000 / d) : 0);
+            tempo.setText(BtMusica.mmss(p)); total.setText(d > 0 ? BtMusica.mmss(d) : "");
+            return;
+        }
         if (ctl == null) return;
         MediaMetadata md = ctl.getMetadata();
         PlaybackState st = ctl.getPlaybackState();
@@ -343,7 +421,9 @@ public class Midia extends Activity {
     }
 
     void controle(int o) {
+        if (Video.mp != null) { if (o == 0) Video.alternar(); else Video.pular(o); return; }
         if (ctl == null) return;
+        if (o != 0 && pularVideo(this, ctl, o)) return;
         MediaController.TransportControls tc = ctl.getTransportControls();
         if (o == -1) tc.skipToPrevious();
         else if (o == 1) tc.skipToNext();

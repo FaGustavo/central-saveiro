@@ -17,6 +17,7 @@ Personalização completa de uma central multimídia Android genérica (chip **A
 
 **Música e rádio**
 - **Mídia**: biblioteca de músicas e vídeos do pendrive (artistas, álbuns, faixas, listas, vídeos), no mesmo visual da central.
+- **Vídeos**: player próprio em tela cheia que, ao sair, continua tocando no cartão da tela inicial (mini player 16:9). Usa o decodificador de hardware: converta os vídeos para .mp4 H.264 720p (os .mkv VP9 do YouTube vão por software e pesam no processador).
 - **Rádio** novo: frequência grande, nome da estação, régua para arrastar, busca de estações e 6 memórias. Cada estação tem uma cor própria.
 - **BT Música** nova: música, artista, álbum e progresso do celular conectado. Mostra a capa real quando o Spotify da central está espelhando o celular.
 - **Spotify** instalado e otimizado.

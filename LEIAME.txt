@@ -97,8 +97,25 @@ Midia nova (activity .Midia, icone "Midia" na tela inicial, substitui o VLC)
  - Navega a biblioteca do VLC (MediaBrowserService org.videolan.vlc/.PlaybackService):
    abas Biblioteca (Artistas/Albuns/Faixas/Generos), Inicio, Listas e Videos.
    Musica toca pelo VLC por tras; o painel direito mostra capa, progresso e
-   controles. Videos: lista os videos do pendrive e abre no player do VLC.
+   controles.
  - O VLC leva alguns segundos para responder na primeira conexao.
+ - Videos: lista os videos do pendrive (copias com mesmo nome e tamanho aparecem
+   uma vez so) e toca no player proprio (Video.java, MediaPlayer do Android).
+   Abre em tela cheia (VideoTela); ao sair, o video continua no cartao da tela
+   inicial, numa moldura 16:9. Tocar no cartao volta para a tela cheia.
+   Anterior/proximo seguem a lista; ao terminar, toca o proximo. Se outra fonte
+   pega o som (radio, Spotify...), o video para. O volante controla o video.
+ - Arquivo que o Android nao abre vai para o VLC (abre com CLEAR_TASK, senao a
+   tela antiga do VLC volta para a frente).
+ - A area de video e SurfaceView: com TextureView o decodificador de hardware
+   da MediaTek mostra imagem verde.
+ - FORMATO DOS VIDEOS: a central so decodifica H.264/HEVC por hardware. VP9
+   (os .mkv baixados do YouTube) vai por software e ocupa ~95% do processador.
+   Converter para .mp4 H.264 720p + AAC (HandBrake "Fast 720p30"), que fica em ~50%.
+ - VLC: Definicoes > Video > "Modo de segundo plano / PiP" em "Reproduzir videos
+   em segundo plano" (para os videos que ainda forem pelo VLC). Para abrir essa
+   tela: adb shell am start -n com.fantinel.logocopy/.Main --es mode abrir
+         --es cmp org.videolan.vlc/org.videolan.vlc.gui.preferences.PreferencesActivity
 
 BT Musica nova (activity .BtMusica, icone "BT Musica" na tela inicial)
  - Le a sessao de midia do Bluetooth (com.android.bluetooth): musica, artista,

@@ -60,6 +60,16 @@ public class Main extends Activity {
                 } catch (Throwable t) { Log.e(TAG, "srcteste", t); }
                 finish(); return;
             }
+            if ("abrir".equals(mode)) {
+                // abre qualquer activity, mesmo não exportada: --es cmp pacote/classe [--es acao X]
+                try {
+                    Intent i = new Intent().setComponent(android.content.ComponentName.unflattenFromString(getIntent().getStringExtra("cmp")))
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    if (getIntent().hasExtra("acao")) i.setAction(getIntent().getStringExtra("acao"));
+                    startActivity(i);
+                } catch (Throwable t) { Log.e(TAG, "abrir", t); }
+                finish(); return;
+            }
             if ("tela".equals(mode)) {
                 // cor da tela: --ef s 1.35 --ef c 1.08  (1 e 1 = normal)
                 float s = getIntent().getFloatExtra("s", 1), c = getIntent().getFloatExtra("c", 1);

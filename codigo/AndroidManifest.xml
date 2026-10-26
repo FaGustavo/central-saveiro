@@ -69,6 +69,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".VideoTela"
+            android:label="Vídeo"
+            android:launchMode="singleTask"
+            android:taskAffinity="com.fantinel.logocopy.video"
+            android:excludeFromRecents="true"
+            android:screenOrientation="landscape"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen" />
         <activity android:name=".Luzes"
             android:label="Luzes"
             android:icon="@drawable/ic_luzes"

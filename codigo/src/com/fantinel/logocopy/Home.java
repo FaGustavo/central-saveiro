@@ -133,7 +133,19 @@ public class Home extends Activity {
         ag.setColor(Color.argb(80, 255, 255, 255)); ag.setCornerRadius(dp(14));
         art.setBackground(ag);
         art.setClipToOutline(true);
-        card.addView(art, new LinearLayout.LayoutParams(dp(325), dp(325)));
+        // moldura da capa; com vídeo tocando vira 16:9 e mostra o vídeo no lugar da capa
+        artBox = new FrameLayout(this);
+        artBox.addView(art, -1, -1);
+        videoBox = new FrameLayout(this);
+        GradientDrawable vg = new GradientDrawable();
+        vg.setColor(Color.BLACK); vg.setCornerRadius(dp(14));
+        videoBox.setBackground(vg);
+        videoBox.setClipToOutline(true);
+        videoBox.setVisibility(View.GONE);
+        quadro = new Video.Quadro(this, false);
+        videoBox.addView(quadro, new FrameLayout.LayoutParams(-1, -1, Gravity.CENTER));
+        artBox.addView(videoBox, -1, -1);
+        card.addView(artBox, new LinearLayout.LayoutParams(dp(325), dp(325)));
 
         LinearLayout info = new LinearLayout(this);
         info.setOrientation(LinearLayout.VERTICAL);
@@ -174,6 +186,7 @@ public class Home extends Activity {
         grid.setOnItemClickListener((p, v, pos, id) -> {
             ResolveInfo r = (ResolveInfo) p.getItemAtPosition(pos);
             if (r == null) { panel.setVisibility(View.VISIBLE); return; }
+            if (r.activityInfo.name.endsWith(".Midia") && Midia.voltarAoVideo(this)) return;
             start(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
                     .setClassName(r.activityInfo.packageName, r.activityInfo.name));
         });
@@ -199,11 +212,13 @@ public class Home extends Activity {
         grid.setAdapter(new Apps(this));
         h.removeCallbacks(tick);
         h.post(tick);
+        Video.ouvir(videoMudou);
     }
 
     @Override
     protected void onPause() {
         super.onPause(); // o tick continua rodando: a cor dos LEDs acompanha a música em qualquer app
+        Video.largar(videoMudou);
     }
 
     @Override
@@ -408,9 +423,42 @@ public class Home extends Activity {
         return md != null && !TextUtils.isEmpty(md.getString(MediaMetadata.METADATA_KEY_TITLE));
     }
 
+    // ---------- vídeo no cartão ----------
+    FrameLayout artBox, videoBox;
+    Video.Quadro quadro;
+    boolean modoVideo;
+    final Runnable videoMudou = () -> { quadro.requestLayout(); update(); };
+
+    void modoVideo(boolean sim) {
+        if (sim == modoVideo) return;
+        modoVideo = sim;
+        artBox.setLayoutParams(new LinearLayout.LayoutParams(sim ? dp(512) : dp(325), sim ? dp(288) : dp(325)));
+        videoBox.setVisibility(sim ? View.VISIBLE : View.GONE);
+        art.setVisibility(sim ? View.GONE : View.VISIBLE);
+        lastArtKey = null;
+    }
+
+    void mostrarVideo() {
+        modoVideo(true);
+        ctl = null;
+        src.setText("Vídeo  •  " + Video.pasta());
+        String t = Video.titulo();
+        if (!t.equals(title.getText().toString())) title.setText(t);
+        int d = Video.duracao();
+        sub.setText(d > 0 ? BtMusica.mmss(Video.posicao()) + " / " + BtMusica.mmss(d) : "Abrindo…");
+        play.setKind(Video.tocando() ? Icon.PAUSE : Icon.PLAY);
+        bg.setImageDrawable(null);
+        corCapa = Cor.PADRAO;
+    }
+
     void update() {
+        if (Video.ativo() || Video.mp != null) { mostrarVideo(); return; }
+        modoVideo(false);
         ctl = pickController();
-        if (radioActive()) { ctl = null; showRadio(); return; }   // o rádio está com o som
+        // o rádio está com o som. Exceção: outro app tocando (ex.: vídeo do VLC), porque o
+        // serviço de fontes não avisa quando o VLC pega o som. O Bluetooth não entra na exceção.
+        boolean outroTocando = ctl != null && isPlaying(ctl) && !"com.android.bluetooth".equals(ctl.getPackageName());
+        if (radioActive() && !outroTocando) { ctl = null; showRadio(); return; }
         if (ctl == null) {
             // player parado sai da lista do Android: mostra a última música conhecida
             if (cPkg != null) show(cSrc, cTitle, cLine, cArt, appIcon(cPkg), false);
@@ -574,6 +622,11 @@ public class Home extends Activity {
     }
 
     void control(int what) {
+        if (Video.mp != null) {
+            if (what == 0) Video.alternar(); else Video.pular(what);
+            h.postDelayed(this::update, 300);
+            return;
+        }
         if (showingRadio()) {
             try {
                 Object r = radio();
@@ -582,7 +635,8 @@ public class Home extends Activity {
             } catch (Throwable t) { Log.e(TAG, "radio", t); }
         } else if (ctl != null) {
             MediaController.TransportControls tc = ctl.getTransportControls();
-            if (what == -1) tc.skipToPrevious();
+            if (what != 0 && "org.videolan.vlc".equals(ctl.getPackageName()) && Midia.pularVideo(this, ctl, what)) { }
+            else if (what == -1) tc.skipToPrevious();
             else if (what == 1) tc.skipToNext();
             else {
                 PlaybackState st = ctl.getPlaybackState();
@@ -596,10 +650,11 @@ public class Home extends Activity {
     }
 
     void openSource() {
+        if (Video.mp != null) { start(new Intent(this, VideoTela.class)); return; }
         if (showingRadio()) { abrirRadio(); return; }
         String pkg = ctl != null ? ctl.getPackageName() : cPkg;
         if ("com.android.bluetooth".equals(pkg)) { start(new Intent(this, BtMusica.class)); return; }
-        if ("org.videolan.vlc".equals(pkg)) { start(new Intent(this, Midia.class)); return; }
+        if ("org.videolan.vlc".equals(pkg)) { if (!Midia.voltarAoVideo(this)) start(new Intent(this, Midia.class)); return; }
         if (pkg == null) return;
         if (ctl != null && ctl.getSessionActivity() != null) {
             try { ctl.getSessionActivity().send(); return; } catch (PendingIntent.CanceledException e) {}

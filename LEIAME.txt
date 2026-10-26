@@ -112,6 +112,11 @@ BT Musica nova (activity .BtMusica, icone "BT Musica" na tela inicial)
 Troca de fonte sem abrir apps de fabrica (classe Fonte)
  - Radio: SourceInfo.onRequestPlayAudio(context do com.hcn.autoradio) + inicia
    o FMPlugService. Funciona sem abrir a tela antiga.
+   A ROM fecha o app do radio quando outra fonte (ex.: Bluetooth) assume, e o
+   Android 8 bloqueia iniciar servico de app parado ("app is in background").
+   Por isso o app libera antes o com.hcn.autoradio por 10 s na lista de excecoes
+   de energia (IDeviceIdleController, = cmd deviceidle tempwhitelist).
+   Sem isso o radio fica em silencio.
  - Bluetooth: SourceInfo.onRequestPlayAudio(ComponentName
    com.autochips.bluetooth/.BtMusicActivity) e play pelo MediaBrowser
    com.android.bluetooth/.a2dpsink.mbs.A2dpMediaBrowserService.

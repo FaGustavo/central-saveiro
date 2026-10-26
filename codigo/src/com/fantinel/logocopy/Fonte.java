@@ -26,6 +26,18 @@ public class Fonte {
         return true;
     }
 
+    // põe o app na lista temporária de exceções de energia (o mesmo que "cmd deviceidle tempwhitelist")
+    static void liberarSegundoPlano(String pkg) {
+        try {
+            android.os.IBinder b = (android.os.IBinder) Class.forName("android.os.ServiceManager")
+                    .getMethod("getService", String.class).invoke(null, "deviceidle");
+            Object di = Class.forName("android.os.IDeviceIdleController$Stub")
+                    .getMethod("asInterface", android.os.IBinder.class).invoke(null, b);
+            di.getClass().getMethod("addPowerSaveTempWhitelistApp", String.class, long.class, int.class, String.class)
+                    .invoke(di, pkg, 10000L, 0, "fonte");
+        } catch (Throwable t) { Log.e("LogoCopy", "liberar " + pkg, t); }
+    }
+
     static void pedirAgora(Context c, String pkg) {
         // 1) pede ao serviço de fontes, "em nome" do app de fábrica
         try {
@@ -41,9 +53,14 @@ public class Fonte {
             }
             Log.i("LogoCopy", "fonte pedida: " + pkg);
         } catch (Throwable t) { Log.e("LogoCopy", "fonte " + pkg, t); }
-        // 2) acorda o serviço do app de fábrica (ele pega o foco de áudio)
+        // 2) acorda o serviço do app de fábrica (ele pega o foco de áudio e toca o som do rádio).
+        //    A ROM fecha o app do rádio quando outra fonte assume, e o Android 8 não deixa iniciar
+        //    serviço de app parado ("app is in background"). Por isso libera o app por 10 s antes.
         try {
-            if (RADIO.equals(pkg)) c.startService(new Intent().setClassName(RADIO, RADIO + ".service.FMPlugService"));
+            if (RADIO.equals(pkg)) {
+                liberarSegundoPlano(RADIO);
+                c.startService(new Intent().setClassName(RADIO, RADIO + ".service.FMPlugService"));
+            }
         } catch (Throwable t) { Log.e("LogoCopy", "servico " + pkg, t); }
         // 3) Bluetooth: NÃO pegar o foco de áudio aqui. O próprio Bluetooth pede o foco quando o
         //    som começa; se a gente tomar o foco dele, ele manda pause ao celular.

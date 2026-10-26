@@ -64,6 +64,7 @@ public class Guard extends Service {
                             Log.i(TAG, "z-link desligado pelo vigia");
                         }
                         Bateria.verificar(this);
+                        Radio.travarFm();
                         Thread.sleep(15000);
                     } catch (Throwable t) {
                         Log.e(TAG, "vigia", t);

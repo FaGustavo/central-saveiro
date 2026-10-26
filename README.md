@@ -58,7 +58,7 @@ Personalização completa de uma central multimídia Android genérica (chip **A
 - LEDs dos botões: serviço `carstatus`, transação 8 `setLed(0, r, g, b)`, com correção de gama 2.2. Fisicamente é uma zona só.
 - Tensão da bateria: `mcu_service` → `IMcuManager.getBattery()`.
 - Saturação, contraste e brilho por software: transação 1015 do `SurfaceFlinger` (matriz de cor 4x4).
-- Troca de fonte sem abrir o app de fábrica: `android.sourceservice.SourceInfo.onRequestPlayAudio(context do pacote)`.
+- Troca de fonte sem abrir o app de fábrica: `android.sourceservice.SourceInfo.onRequestPlayAudio(context do pacote)`. No Bluetooth, a chamada usa o `ComponentName` da tela `com.autochips.bluetooth/.BtMusicActivity`: só assim a ROM muda o caminho de áudio para A2DP e libera o foco de áudio ao Bluetooth.
 - Toques em qualquer app para o modo noturno: janela invisível de 1 px com `FLAG_WATCH_OUTSIDE_TOUCH`.
 
 **Ajustes de sistema via ADB**
@@ -70,7 +70,6 @@ Personalização completa de uma central multimídia Android genérica (chip **A
 **Limitações conhecidas**
 - Wi‑Fi só em 2.4 GHz: CarPlay sem fio com um pouco de atraso.
 - O Bluetooth do Android 8.1 não recebe capa de álbum.
-- Play pelo BT Música: o comando AVRCP chega ao iPhone, mas a reprodução volta a pausar (em aberto).
 
 ---
 

@@ -65,6 +65,23 @@ public class Radio extends Activity {
 
     static boolean isFm(String banda) { return banda == null || banda.toUpperCase().startsWith("FM"); }
 
+    // Rádio travado em FM: se a banda mudar para AM (botão BAND, app de fábrica...), volta para FM-1.
+    static void travarFm() {
+        try {
+            Object r = rp();
+            Class<?> k = r.getClass();
+            Object atual = k.getMethod("getUiband").invoke(r);
+            if (atual == null || isFm(String.valueOf(atual))) return;
+            Object fm = bandaEnum("FM-1");
+            if (fm == null) return;
+            Object p = null;
+            for (Method m : k.getMethods()) if (m.getName().equals("getPreset") && m.getParameterTypes().length == 1) p = m.invoke(r, fm);
+            int f = p instanceof int[] && ((int[]) p).length > 0 && ((int[]) p)[0] > 0 ? ((int[]) p)[0] : 87500;
+            call("setUibandIndexFreq", fm, 0, f);
+            Log.i(TAG, "radio estava em " + atual + ", voltou para FM " + f);
+        } catch (Throwable t) {}
+    }
+
     static String fmt(int f, boolean fm) { return fm ? String.format("%.1f", f / 1000f).replace('.', ',') : String.valueOf(f); }
 
     // cor própria de cada estação (mesma frequência = mesma cor)
@@ -227,6 +244,7 @@ public class Radio extends Activity {
             rt = r == null ? "" : String.valueOf(r).trim();
         } catch (Throwable t) {}
         boolean fm = isFm(banda);
+        if (!fm) { travarFm(); return; }
         if (!regua.arrastando) freqTv.setText(freq <= 0 ? "—" : fmt(freq, fm));
         unidadeTv.setText(fm ? "MHz" : "kHz");
         nome = ps;

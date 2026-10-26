@@ -29,22 +29,29 @@ public class Fonte {
     static void pedirAgora(Context c, String pkg) {
         // 1) pede ao serviço de fontes, "em nome" do app de fábrica
         try {
-            Context outro = c.createPackageContext(pkg, 0);
             Class<?> si = Class.forName("android.sourceservice.SourceInfo");
             Object inst = si.getMethod("getInstance").invoke(null);
-            si.getMethod("onRequestPlayAudio", Context.class).invoke(inst, outro);
+            if (BT.equals(pkg)) {
+                // Bluetooth: tem que ser em nome da tela de música BT. Só assim o caminho vira A2DP;
+                // sem ele a ROM recusa o foco de áudio ao Bluetooth, que então pausa o celular.
+                si.getMethod("onRequestPlayAudio", android.content.ComponentName.class)
+                        .invoke(inst, new android.content.ComponentName(BT, BT + ".BtMusicActivity"));
+            } else {
+                si.getMethod("onRequestPlayAudio", Context.class).invoke(inst, c.createPackageContext(pkg, 0));
+            }
             Log.i("LogoCopy", "fonte pedida: " + pkg);
         } catch (Throwable t) { Log.e("LogoCopy", "fonte " + pkg, t); }
         // 2) acorda o serviço do app de fábrica (ele pega o foco de áudio)
         try {
             if (RADIO.equals(pkg)) c.startService(new Intent().setClassName(RADIO, RADIO + ".service.FMPlugService"));
         } catch (Throwable t) { Log.e("LogoCopy", "servico " + pkg, t); }
-        // 3) Bluetooth: pega o foco de áudio (o rádio/outros se calam) e dá play no celular
+        // 3) Bluetooth: NÃO pegar o foco de áudio aqui. O próprio Bluetooth pede o foco quando o
+        //    som começa; se a gente tomar o foco dele, ele manda pause ao celular.
+        //    Só devolve um foco antigo nosso, se houver. O play é enviado pela tela BT Música.
         if (BT.equals(pkg)) {
             try {
                 android.media.AudioManager am = (android.media.AudioManager) c.getApplicationContext().getSystemService(Context.AUDIO_SERVICE);
-                am.requestAudioFocus(FOCO, android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.AUDIOFOCUS_GAIN);
-                // o play em si é enviado pela tela BT Música (conexão A2DP)
+                am.abandonAudioFocus(FOCO);
             } catch (Throwable t) { Log.e("LogoCopy", "foco bt", t); }
         }
     }

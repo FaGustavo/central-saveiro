@@ -42,6 +42,24 @@ public class Main extends Activity {
                 Log.i(TAG, "fonte -> " + Fonte.pedir(this, getIntent().getStringExtra("pkg")));
                 finish(); return;
             }
+            if ("banda".equals(mode)) {
+                // força uma banda do rádio (teste da trava em FM): --es b AM-1
+                Object be = Radio.bandaEnum(getIntent().getStringExtra("b"));
+                Log.i(TAG, "banda " + be + " -> " + Radio.call("setUibandIndexFreq", be, 0, Radio.isFm(String.valueOf(be)) ? 87500 : 531));
+                finish(); return;
+            }
+            if ("srcteste".equals(mode)) {
+                // testa as variantes do pedido de fonte: --es tipo cn|str --es arg pacote/classe
+                String tipo = getIntent().getStringExtra("tipo"), arg = getIntent().getStringExtra("arg");
+                try {
+                    Class<?> si = Class.forName("android.sourceservice.SourceInfo");
+                    Object inst = si.getMethod("getInstance").invoke(null);
+                    if ("cn".equals(tipo)) si.getMethod("onRequestPlayAudio", android.content.ComponentName.class).invoke(inst, android.content.ComponentName.unflattenFromString(arg));
+                    else si.getMethod("onRequestPlayAudio", String.class).invoke(inst, arg);
+                    Log.i(TAG, "srcteste ok " + tipo + " " + arg);
+                } catch (Throwable t) { Log.e(TAG, "srcteste", t); }
+                finish(); return;
+            }
             if ("tela".equals(mode)) {
                 // cor da tela: --ef s 1.35 --ef c 1.08  (1 e 1 = normal)
                 float s = getIntent().getFloatExtra("s", 1), c = getIntent().getFloatExtra("c", 1);

@@ -89,6 +89,9 @@ Radio novo (activity .Radio do app proprio, icone "Radio" na tela inicial)
    fabrica com.hcn.autoradio: se o radio nao for a fonte atual, o app novo abre
    o de fabrica por um instante e volta (por isso ele nao pode ser desativado).
  - Capa gerada com a cor da estacao (mesma cor nos LEDs, Saveiro e tela inicial).
+ - Travado em FM: se a banda for para AM (botao BAND, app de fabrica...), a tela
+   do Radio e o vigia (a cada 15 s) voltam para FM-1 na primeira memoria.
+   Testar: adb shell am start -n com.fantinel.logocopy/.Main --es mode banda --es b AM-1
 
 Midia nova (activity .Midia, icone "Midia" na tela inicial, substitui o VLC)
  - Navega a biblioteca do VLC (MediaBrowserService org.videolan.vlc/.PlaybackService):
@@ -104,14 +107,19 @@ BT Musica nova (activity .BtMusica, icone "BT Musica" na tela inicial)
    (Spotify Connect) com a mesma musica, usa a capa real dele; senao, capa
    gerada (cor por album). Com Bluetooth tocando, o cartao da tela inicial
    mostra o Bluetooth (prioridade sobre o Spotify espelhado). O som sai pelo app
-   de fabrica com.autochips.bluetooth (aberto por um instante se preciso).
+   de fabrica com.autochips.bluetooth (sem abrir a tela dele, ver abaixo).
 
 Troca de fonte sem abrir apps de fabrica (classe Fonte)
  - Radio: SourceInfo.onRequestPlayAudio(context do com.hcn.autoradio) + inicia
    o FMPlugService. Funciona sem abrir a tela antiga.
- - Bluetooth: pede a fonte, pega o foco de audio e manda play pelo
-   MediaBrowser com.android.bluetooth/.a2dpsink.mbs.A2dpMediaBrowserService.
-   PENDENTE: o play chega ao iPhone, mas a musica volta a pausar.
+ - Bluetooth: SourceInfo.onRequestPlayAudio(ComponentName
+   com.autochips.bluetooth/.BtMusicActivity) e play pelo MediaBrowser
+   com.android.bluetooth/.a2dpsink.mbs.A2dpMediaBrowserService.
+   Tem que ser em nome da TELA BtMusicActivity: so assim o caminho da ROM vira
+   A2DP (ver com: adb shell dumpsys sourceinfo, linha Path=). Sem A2DP a ROM
+   recusa o foco de audio ao Bluetooth e ele pausa o celular ~5 s depois.
+   Tambem NAO pegar o foco de audio pelo app proprio: o Bluetooth perde o
+   foco e manda pause na hora (era o problema do "play que volta a pausar").
  - "Voltar" do Radio, BT Musica e Midia vai sempre para a tela inicial.
 
 Fuso horario

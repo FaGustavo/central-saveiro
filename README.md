@@ -24,6 +24,7 @@ Personalização completa de uma central multimídia Android genérica (chip **A
 
 **Som**
 - App **Som** com grave, médio, agudo, loudness, subwoofer (nível e corte), balanço e fader. Ele substitui o DSP de fábrica, que tinha um equalizador que não funcionava de verdade.
+- **Volume na ré**: ao engatar a ré, o som desce aos poucos até o nível escolhido no app Som e volta aos poucos ao sair. A central de fábrica cortava o som de uma vez.
 - Os ajustes voltam sozinhos sempre que a central liga.
 
 **Luzes e tela**

@@ -45,6 +45,7 @@ public class Guard extends Service {
     public int onStartCommand(Intent intent, int flags, int id) {
         ModoNoite.iniciar(this);
         Fonte.liberarSempre(Fonte.RADIO); // o serviço do rádio de fábrica não pode ser encerrado por ócio
+        Re.iniciar(this);                  // volume na ré com descida gradual
         // reaplica o som depois que o app original aplicar o dele
         if (intent == null || intent.getBooleanExtra("som", false)) {
             new Thread(() -> {

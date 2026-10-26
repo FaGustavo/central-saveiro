@@ -117,6 +117,17 @@ Midia nova (activity .Midia, icone "Midia" na tela inicial, substitui o VLC)
    tela: adb shell am start -n com.fantinel.logocopy/.Main --es mode abrir
          --es cmp org.videolan.vlc/org.videolan.vlc.gui.preferences.PreferencesActivity
 
+Volume na re (Re.java, iniciado pelo Guard; barra em Ajustes > Som > "Volume na re")
+ - De fabrica, ao engatar a re o sistema poe o chip de som (ExtAudioMuxer cmd 10)
+   em audio_rev_volume % do volume, de uma vez (estava 0 = mudo).
+ - Agora: settings system audio_rev_volume = 100 (a fabrica nao mexe) e o Re.java
+   escuta android.mcu.device.action.REVSTATUS (extra REVSTATUS = true/false, boolean).
+   Na re o volume (STREAM_MUSIC, 0..40) desce 1 ponto por vez em ~1,5 s ate o nivel
+   escolhido (padrao 10; se ja estiver abaixo, nao muda). Ao sair, sobe em ~2,5 s
+   ate o volume salvo (prefs "som"/"reSalvo").
+ - AudioManager.enableBackcarVolumePolicy(false) e chamado, mas a regra de fabrica
+   continua ativa; o que resolve e o audio_rev_volume = 100.
+
 BT Musica nova (activity .BtMusica, icone "BT Musica" na tela inicial)
  - Le a sessao de midia do Bluetooth (com.android.bluetooth): musica, artista,
    album, progresso e controles. O Android 8.1 nao recebe a capa pelo

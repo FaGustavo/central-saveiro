@@ -107,6 +107,16 @@ public class Som extends Activity {
         sub.addView(slider("Balanço (esquerda ↔ direita)", "bal", 0, 14, 7, false));
         sub.addView(slider("Fader (trás ↔ frente)", "fad", 0, 14, 7, false));
 
+        // volume na ré (Re.java): o som desce aos poucos até este nível ao engatar a ré
+        TextView rt = text("Ré", 20, ACCENT);
+        rt.setTypeface(Typeface.DEFAULT_BOLD);
+        rt.setPadding(0, dp(24), 0, 0);
+        sub.addView(rt);
+        sub.addView(slider("Volume na ré", "reVol", 0, 40, 10, false));
+        TextView rh = text("Ao engatar a ré o som desce aos poucos até este nível e volta ao sair. Se o volume já estiver mais baixo, não muda.", 13, MUTED);
+        rh.setPadding(0, dp(6), 0, 0);
+        sub.addView(rh);
+
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, -2, 1);
         lp.setMargins(0, dp(12), dp(12), 0);
         cols.addView(eq, lp);
@@ -157,6 +167,7 @@ public class Som extends Activity {
             if (centered) val = ((v - 7) * 2 > 0 ? "+" : "") + (v - 7) * 2 + " dB";
             else if (key.equals("bal")) val = v == 7 ? "centro" : v < 7 ? "esquerda " + (7 - v) : "direita " + (v - 7);
             else if (key.equals("fad")) val = v == 7 ? "centro" : v < 7 ? "trás " + (7 - v) : "frente " + (v - 7);
+            else if (key.equals("reVol")) val = v == 0 ? "mudo" : v + " de 40";
             else val = String.valueOf(v);
             t.setText(label + ":  " + val);
         };
@@ -175,6 +186,7 @@ public class Som extends Activity {
         public void onStartTrackingTouch(SeekBar sb) {}
         public void onStopTrackingTouch(SeekBar sb) {
             a.sp.edit().putInt(key, sb.getProgress() + min).commit();
+            if (key.equals("reVol")) return;   // só o Re.java usa (lido na hora de engatar a ré)
             apply(a);
         }
     }

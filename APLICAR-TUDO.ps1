@@ -40,6 +40,8 @@ $off = @(
   "com.zjinnova.zlink","com.hcn.autoeq","com.autochips.android.atcLocationService"
 )
 foreach ($p in $off) { sh "pm disable-user --user 0 $p" }
+# o radio de fabrica nao pode ser encerrado por ocio (senao o FM fica mudo apos ~1 min)
+sh "dumpsys deviceidle whitelist +com.hcn.autoradio"
 
 Write-Output "4) Escondendo icones (app continua instalado)"
 lc "--es mode comp --es comp com.auto.hcamera/com.auto.hcamera.VideoInActivity --ez on false"

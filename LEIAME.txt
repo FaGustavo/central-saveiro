@@ -117,6 +117,10 @@ Troca de fonte sem abrir apps de fabrica (classe Fonte)
    Por isso o app libera antes o com.hcn.autoradio por 10 s na lista de excecoes
    de energia (IDeviceIdleController, = cmd deviceidle tempwhitelist).
    Sem isso o radio fica em silencio.
+   Alem disso o com.hcn.autoradio fica SEMPRE na lista de excecoes de energia
+   (o vigia aplica a cada boot; manual: adb shell dumpsys deviceidle whitelist
+   +com.hcn.autoradio). Sem isso o Android encerra o servico do radio ~1 min
+   depois ("Stopping service due to app idle") e o FM para.
  - Bluetooth: SourceInfo.onRequestPlayAudio(ComponentName
    com.autochips.bluetooth/.BtMusicActivity) e play pelo MediaBrowser
    com.android.bluetooth/.a2dpsink.mbs.A2dpMediaBrowserService.

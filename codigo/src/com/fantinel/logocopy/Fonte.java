@@ -26,16 +26,29 @@ public class Fonte {
         return true;
     }
 
+    static Object deviceIdle() throws Exception {
+        android.os.IBinder b = (android.os.IBinder) Class.forName("android.os.ServiceManager")
+                .getMethod("getService", String.class).invoke(null, "deviceidle");
+        return Class.forName("android.os.IDeviceIdleController$Stub")
+                .getMethod("asInterface", android.os.IBinder.class).invoke(null, b);
+    }
+
     // põe o app na lista temporária de exceções de energia (o mesmo que "cmd deviceidle tempwhitelist")
     static void liberarSegundoPlano(String pkg) {
         try {
-            android.os.IBinder b = (android.os.IBinder) Class.forName("android.os.ServiceManager")
-                    .getMethod("getService", String.class).invoke(null, "deviceidle");
-            Object di = Class.forName("android.os.IDeviceIdleController$Stub")
-                    .getMethod("asInterface", android.os.IBinder.class).invoke(null, b);
+            Object di = deviceIdle();
             di.getClass().getMethod("addPowerSaveTempWhitelistApp", String.class, long.class, int.class, String.class)
                     .invoke(di, pkg, 10000L, 0, "fonte");
         } catch (Throwable t) { Log.e("LogoCopy", "liberar " + pkg, t); }
+    }
+
+    // Lista permanente de exceções de energia (= "dumpsys deviceidle whitelist +pacote").
+    // Sem ela o Android 8 encerra o serviço do rádio de fábrica ~1 min depois ("app idle") e o FM fica mudo.
+    static void liberarSempre(String pkg) {
+        try {
+            Object di = deviceIdle();
+            di.getClass().getMethod("addPowerSaveWhitelistApp", String.class).invoke(di, pkg);
+        } catch (Throwable t) { Log.e("LogoCopy", "liberar sempre " + pkg, t); }
     }
 
     static void pedirAgora(Context c, String pkg) {

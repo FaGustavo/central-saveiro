@@ -8,8 +8,9 @@ import android.os.IBinder;
 import android.util.Log;
 import java.lang.reflect.Method;
 
-// Vigia: mantém o serviço z-link desligado (service.zlink.enable=0).
-// Liga ao iniciar a central. Para desligar o vigia: --es mode zlink_on
+// Vigia: a cada 15 s confere a bateria, trava o rádio em FM e mantém o
+// z-link desligado (service.zlink.enable=0). Liga ao iniciar a central.
+// --es mode zlink_on libera só o z-link; bateria e FM continuam vigiados.
 public class Guard extends Service {
     static final String TAG = "LogoCopy";
     static final String KEY = "service.zlink.enable";
@@ -55,26 +56,33 @@ public class Guard extends Service {
                 } catch (InterruptedException e) {}
             }).start();
         }
-        if (!running && enabled(this)) {
+        if (!running) {
             running = true;
             new Thread(() -> {
-                Log.i(TAG, "vigia do z-link ligado");
-                while (running && enabled(this)) {
+                Log.i(TAG, "vigia ligado");
+                boolean vigiandoZlink = false;
+                while (running) {
+                    // z-link: só esta parte obedece ao zlink_on / zlink_off
                     try {
-                        if (!"0".equals(get(KEY))) {
+                        boolean vigiar = enabled(this);
+                        if (vigiar != vigiandoZlink) {
+                            Log.i(TAG, vigiar ? "vigia do z-link ligado" : "vigia do z-link parado");
+                            vigiandoZlink = vigiar;
+                        }
+                        // confere de novo antes de escrever, caso o zlink_on chegue no meio
+                        if (vigiar && !"0".equals(get(KEY)) && enabled(this)) {
                             set(KEY, "0");
                             Log.i(TAG, "z-link desligado pelo vigia");
                         }
-                        Bateria.verificar(this);
-                        Radio.travarFm();
-                        Thread.sleep(15000);
-                    } catch (Throwable t) {
-                        Log.e(TAG, "vigia", t);
-                        try { Thread.sleep(15000); } catch (InterruptedException e) { break; }
-                    }
+                    } catch (Throwable t) { Log.e(TAG, "vigia z-link", t); }
+                    // bateria e FM rodam sempre, mesmo com o z-link liberado;
+                    // cada um no seu try para a falha de um não pular o outro
+                    try { Bateria.verificar(this); } catch (Throwable t) { Log.e(TAG, "vigia bateria", t); }
+                    try { Radio.travarFm(); } catch (Throwable t) { Log.e(TAG, "vigia fm", t); }
+                    try { Thread.sleep(15000); } catch (InterruptedException e) { break; }
                 }
                 running = false;
-                Log.i(TAG, "vigia do z-link parado");
+                Log.i(TAG, "vigia parado");
                 stopSelf();
             }).start();
         }

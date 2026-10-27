@@ -139,10 +139,9 @@ public class Main extends Activity {
                 finish(); return;
             }
             if ("zlink_on".equals(mode)) {
-                Guard.setEnabled(this, false);
-                Guard.running = false;
+                Guard.setEnabled(this, false); // o laço do Guard continua; só para de mexer no z-link
                 Guard.set(Guard.KEY, "1");
-                Log.i(TAG, "z-link religado, vigia desligado");
+                Log.i(TAG, "z-link religado, vigia do z-link desligado");
                 finish(); return;
             }
             if ("copy".equals(mode)) copy();

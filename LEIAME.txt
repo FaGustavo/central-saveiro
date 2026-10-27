@@ -77,7 +77,7 @@ App proprio "LogoCopy" (com.fantinel.logocopy) - apks\LogoCopy.apk
  - Vigia do z-link: mantem o servico z-link desligado (ele travava a porta
    USB em modo host e derrubava o ADB).
  - Comandos uteis (via ADB):
-     am start -n com.fantinel.logocopy/.Main --es mode zlink_on    (religa o z-link)
+     am start -n com.fantinel.logocopy/.Main --es mode zlink_on    (religa o z-link; o aviso de bateria e a trava do FM continuam)
      am start -n com.fantinel.logocopy/.Main --es mode comp --es comp PACOTE/CLASSE --ez on true  (mostra icone)
      am start -n com.fantinel.logocopy/.Main --es mode copy         (copia logo.png do pendrive)
      am start -n com.fantinel.logocopy/.Main --es mode tz --es tz America/Fortaleza  (fuso)

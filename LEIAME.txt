@@ -184,6 +184,33 @@ Logo de abertura
    logotipo dedicada" e escolher a imagem saveiro.png.
 
 
+PENDENCIAS (28/10/2026 - central ja instalada no carro)
+-------------------------------------------------------
+Camera de re: ao engatar a re a tela fica PRETA.
+ - A central recebe o sinal de re (a tela da camera abre), mas nao chega imagem.
+ - Nao e o app proprio: so escondemos o icone do "Av In" (VideoInActivity, entrada
+   AV), e o app da camera reativa esse icone a cada boot.
+ - Suspeitas, em ordem:
+   1. Formato errado: Definicoes > Configuracoes de fabrica (senhas comuns: 8888,
+      3368, 1234, 126) > camera de re > AHD (720P/1080P, 25/30) ou CVBS (PAL/NTSC).
+   2. Camera sem alimentacao: fio vermelho da camera no +12 V da luz de re.
+   3. Fio "laco" na propria camera que troca AHD/CVBS ou PAL/NTSC.
+
+App Som: medio, nivel do subwoofer e frequencias de corte (grave e sub) nao fazem nada.
+ - Causa: o chip CD3313 (clone do PT2313) so tem grave, agudo, loudness, balanco e
+   fader. Nao tem medio, nem saida de sub controlavel, nem escolha de frequencia.
+   As chamadas setAlto/setSubWoofer/frequencia do setBassBoost sao ignoradas.
+ - Corte e nivel do sub: usar os ajustes do modulo/sub amplificado (LPF e gain).
+ - Ideia: medio por software (android.media.audiofx.Equalizer na sessao global 0).
+   Vale para Spotify/VLC/Bluetooth/videos, NAO para o radio FM (vai direto pelo chip).
+   Esconder do app Som os controles que o chip nao tem.
+
+Proximo passo: com a central no USB (dentro do carro), rodar
+   & "C:\Users\Fantinel\Documents\Central-Saveiro\diagnostico-som-camera.ps1"
+ Ele so le informacoes (nao altera nada), pede para engatar a re no meio e salva
+ tudo em diagnostico\diag-<data>.txt (formato da camera, efeitos de audio disponiveis).
+
+
 PASSOS MANUAIS DEPOIS DO SCRIPT
 -------------------------------
  - Logo de abertura (acima).

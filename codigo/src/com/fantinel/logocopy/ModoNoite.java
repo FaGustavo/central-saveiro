@@ -79,7 +79,20 @@ public class ModoNoite {
         }
     }
 
+    // Na ré a matriz de cor tem que sair. Com ela o SurfaceFlinger monta a tela toda pela GPU (Mali),
+    // que não desenha o formato de vídeo da câmera (YUV 0x10c): a imagem da ré fica preta.
+    static boolean naRe;
+
+    static void re(boolean on) {
+        if (naRe == on) return;
+        naRe = on;
+        geracao++;                        // cancela transição em andamento
+        if (on) Cor.tela(1, 1, 1);        // sem matriz
+        else { kAtual = 1f; verificar(true); }   // volta suave do normal até o brilho certo
+    }
+
     static void aplicar() {
+        if (naRe) return;
         SharedPreferences pr = p(ctx);
         Cor.tela(pr.getFloat("s", 1), pr.getFloat("c", 1), kAtual);
     }

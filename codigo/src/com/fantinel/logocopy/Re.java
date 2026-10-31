@@ -53,6 +53,7 @@ public class Re {
             Object v = i.getExtras() == null ? null : i.getExtras().get(EXTRA);
             boolean re = v instanceof Boolean ? (Boolean) v : v instanceof Integer && (Integer) v != 0;
             Log.i(TAG, "re: estado " + v);
+            ModoNoite.re(re);             // tira o ajuste de cor da tela, senão a câmera fica preta
             if (re) entrar(); else sair();
         }
     }

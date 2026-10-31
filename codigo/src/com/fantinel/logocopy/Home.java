@@ -187,6 +187,7 @@ public class Home extends Activity {
             ResolveInfo r = (ResolveInfo) p.getItemAtPosition(pos);
             if (r == null) { panel.setVisibility(View.VISIBLE); return; }
             if (r.activityInfo.name.endsWith(".Midia") && Midia.voltarAoVideo(this)) return;
+            if (r.activityInfo.packageName.equals(DIPLAY)) { menuEspelhar(r); return; }
             start(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
                     .setClassName(r.activityInfo.packageName, r.activityInfo.name));
         });
@@ -194,6 +195,8 @@ public class Home extends Activity {
 
         root.addView(buildPanel(), -1, -1);
         setContentView(root);
+        // garante o vigia (ré, bateria, modo noturno, z-link) mesmo depois de reinstalar o app
+        if (Guard.enabled(this)) startService(new android.content.Intent(this, Guard.class));
         ModoNoite.iniciar(this);
         focusPkg = getSharedPreferences("home", 0).getString("fonte", "");
         cPkg = getSharedPreferences("home", 0).getString("cPkg", null);
@@ -339,6 +342,42 @@ public class Home extends Activity {
         try { startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); } catch (Throwable t) { Log.e(TAG, "abrir", t); }
     }
 
+    // ---------- botão DiPlay: escolher DiPlay ou ZLink (CarPlay / Android Auto) ----------
+    static final String DIPLAY = "com.shihab.diplay", ZLINK = "com.zjinnova.zlink";
+
+    void menuEspelhar(ResolveInfo r) {
+        LinearLayout box = new LinearLayout(this);
+        box.setPadding(dp(24), dp(20), dp(24), dp(24));
+        android.app.AlertDialog d = new android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle("CarPlay / Android Auto").setView(box).create();
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(260), dp(130));
+        lp.setMargins(dp(10), 0, dp(10), 0);
+        box.addView(opcao("DiPlay", Color.rgb(64, 170, 255), v -> {
+            d.dismiss();
+            Guard.usarZlink(this, false);
+            start(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+                    .setClassName(r.activityInfo.packageName, r.activityInfo.name));
+        }), lp);
+        box.addView(opcao("ZLink", Color.rgb(255, 140, 40), v -> {
+            d.dismiss();
+            Guard.usarZlink(this, true);
+            start(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+                    .setClassName(ZLINK, "com.zjinnova.android.zlink.features.main.MainActivity"));
+        }), lp);
+        d.show();
+    }
+
+    TextView opcao(String s, int cor, View.OnClickListener l) {
+        TextView t = text(30, Color.WHITE, true);
+        t.setText(s);
+        t.setGravity(Gravity.CENTER);
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(cor); g.setCornerRadius(dp(20));
+        t.setBackground(g);
+        t.setOnClickListener(l);
+        return t;
+    }
+
     // ---------- fonte atual (aviso do serviço "sourceinfo") ----------
     void registerSource() {
         try {
@@ -459,6 +498,12 @@ public class Home extends Activity {
         // serviço de fontes não avisa quando o VLC pega o som. O Bluetooth não entra na exceção.
         boolean outroTocando = ctl != null && isPlaying(ctl) && !"com.android.bluetooth".equals(ctl.getPackageName());
         if (radioActive() && !outroTocando) { ctl = null; showRadio(); return; }
+        if (ZLINK.equals(focusPkg) && !outroTocando) {
+            // ZLink (CarPlay) não informa a música: o cartão só diz "CarPlay"
+            ctl = null;
+            show("ZLink", "CarPlay", "", null, appIcon(ZLINK), true);
+            return;
+        }
         if (ctl == null) {
             // player parado sai da lista do Android: mostra a última música conhecida
             if (cPkg != null) show(cSrc, cTitle, cLine, cArt, appIcon(cPkg), false);
@@ -483,6 +528,7 @@ public class Home extends Activity {
         boolean playing = st != null && st.getState() == PlaybackState.STATE_PLAYING;
         String line2 = TextUtils.isEmpty(ar) ? (al == null ? "" : al) : (TextUtils.isEmpty(al) ? ar : ar + "  •  " + al);
         String novo = TextUtils.isEmpty(t) ? "Sem título" : t;
+        if (Midia.VLC.equals(ctl.getPackageName())) { novo = Midia.nomeFaixa(novo); line2 = ""; }   // pendrive: só o nome da faixa
         if (bm != null || !novo.equals(cTitle)) cArt = bm;   // mesma música sem capa (ainda carregando) mantém a capa
         if (!novo.equals(cTitle) || !ctl.getPackageName().equals(cPkg))
             getSharedPreferences("home", 0).edit().putString("cPkg", ctl.getPackageName())
@@ -652,6 +698,11 @@ public class Home extends Activity {
     void openSource() {
         if (Video.mp != null) { start(new Intent(this, VideoTela.class)); return; }
         if (showingRadio()) { abrirRadio(); return; }
+        if (ZLINK.equals(focusPkg)) {
+            start(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+                    .setClassName(ZLINK, "com.zjinnova.android.zlink.features.main.MainActivity"));
+            return;
+        }
         String pkg = ctl != null ? ctl.getPackageName() : cPkg;
         if ("com.android.bluetooth".equals(pkg)) { start(new Intent(this, BtMusica.class)); return; }
         if ("org.videolan.vlc".equals(pkg)) { if (!Midia.voltarAoVideo(this)) start(new Intent(this, Midia.class)); return; }
@@ -714,7 +765,8 @@ public class Home extends Activity {
                         || p.equals(RADIO)   // rádio de fábrica: substituído pelo rádio novo
                         || p.equals("com.hcn.autoupdate") || p.equals("com.hcn.mcuupgrade") || p.equals("com.hcn.canupgrade")
                         || p.equals("com.hcn.themepicker") || p.contains("fota") || p.contains("Fota")
-                        || p.equals("com.auto.hcamera"))   // Av In (o app da câmera reativa o ícone a cada boot)
+                        || p.equals("com.auto.hcamera")    // Av In (o app da câmera reativa o ícone a cada boot)
+                        || p.equals(ZLINK))                // ZLink: abre pelo menu do botão DiPlay
                     it.remove();
             }
             Collections.sort(list, (x, y) -> String.valueOf(x.loadLabel(pm)).compareToIgnoreCase(String.valueOf(y.loadLabel(pm))));

@@ -89,5 +89,13 @@
                 <action android:name="android.intent.action.SCREEN_ON" />
             </intent-filter>
         </receiver>
+        <!-- ignição: a central dorme (quick boot); ao ligar, volta a tocar o pendrive -->
+        <receiver android:name=".Retomar$Aviso" android:exported="true">
+            <intent-filter>
+                <action android:name="autochips.intent.action.QB_POWERON" />
+                <action android:name="autochips.intent.action.QB_POWEROFF" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

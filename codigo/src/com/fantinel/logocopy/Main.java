@@ -122,6 +122,13 @@ public class Main extends Activity {
                 }
                 finish(); return;
             }
+            if ("btnome".equals(mode)) {
+                // nome do Bluetooth da central: --es nome "Saveiro Fantinel"
+                String n = getIntent().getStringExtra("nome");
+                boolean ok = android.bluetooth.BluetoothAdapter.getDefaultAdapter().setName(n);
+                Log.i(TAG, "btnome " + n + " ok=" + ok);
+                finish(); return;
+            }
             if ("comp".equals(mode)) {
                 // esconde/mostra um componente: --es comp pacote/classe --ez on false
                 android.content.ComponentName cn = android.content.ComponentName.unflattenFromString(getIntent().getStringExtra("comp"));

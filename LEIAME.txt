@@ -71,8 +71,15 @@ App proprio "LogoCopy" (com.fantinel.logocopy) - apks\LogoCopy.apk
      adb shell service call carstatus 8 i32 0 i32 R i32 G i32 B
    Prioridade do cartao: o que esta tocando > o ultimo que tocou (pausado) >
    radio/ultimo app que pegou o audio.
- - App "Som": grave, medio, agudo (+-14 dB), frequencia do grave, loudness,
-   subwoofer (liga, nivel, corte), balanco e fader. Fala direto com o chip.
+ - App "Som": grave, medio, agudo (-30 a +30 dB: ate +-14 pelo chip, o resto pelo
+   equalizador do Android, som todo), loudness, sub liga/desliga, balanco e fader.
+   O chip ignora nivel, corte do sub e frequencia do grave (o DSP de fabrica tambem):
+   nivel e corte do sub se ajustam no modulo do sub (GAIN e LPF).
+   Volume suave (barra "Suavizar volume baixo", padrao 8): a curva de volume da
+   central (0..40 vai direto ao chip) da saltos grandes no comeco. O app aplica um
+   corte extra pelo equalizador do Android: -8 dB no nivel 2, crescendo ate -14 no
+   nivel 8 e sumindo aos poucos ate o nivel 30 (o maximo nao muda). Refeito a cada
+   mudanca de volume (Som.ouvirVolume, iniciado pelo Guard).
    Os ajustes voltam sozinhos quando a central liga.
  - Vigia do z-link: mantem o servico z-link desligado (ele travava a porta
    USB em modo host e derrubava o ADB).
@@ -81,6 +88,7 @@ App proprio "LogoCopy" (com.fantinel.logocopy) - apks\LogoCopy.apk
      am start -n com.fantinel.logocopy/.Main --es mode comp --es comp PACOTE/CLASSE --ez on true  (mostra icone)
      am start -n com.fantinel.logocopy/.Main --es mode copy         (copia logo.png do pendrive)
      am start -n com.fantinel.logocopy/.Main --es mode tz --es tz America/Fortaleza  (fuso)
+     am start -S -n com.fantinel.logocopy/.Main --es mode btnome --es nome 'Saveiro Fantinel'  (nome do Bluetooth)
    Obs.: se o Main ja estiver aberto, usar "am start -S" (e depois rodar de novo o modo zlink_off).
 
 Radio novo (activity .Radio do app proprio, icone "Radio" na tela inicial)
@@ -94,10 +102,16 @@ Radio novo (activity .Radio do app proprio, icone "Radio" na tela inicial)
    Testar: adb shell am start -n com.fantinel.logocopy/.Main --es mode banda --es b AM-1
 
 Midia nova (activity .Midia, icone "Midia" na tela inicial, substitui o VLC)
- - Navega a biblioteca do VLC (MediaBrowserService org.videolan.vlc/.PlaybackService):
-   abas Biblioteca (Artistas/Albuns/Faixas/Generos), Inicio, Listas e Videos.
-   Musica toca pelo VLC por tras; o painel direito mostra capa, progresso e
-   controles.
+ - Abas Biblioteca e Videos. Biblioteca = pastas e musicas do pendrive, lidas direto
+   do pendrive (/storage/XXXX-XXXX; o atalho sdcard0 e a memoria interna, fica de fora).
+   Atualiza sozinha ao colocar/tirar pendrive (MEDIA_MOUNTED/UNMOUNTED...).
+ - Ao tocar uma musica, o app grava uma lista (Android/data/com.fantinel.logocopy/files/
+   pasta.m3u8) com as musicas da pasta comecando na escolhida e manda ao VLC
+   (playFromUri). Assim proximo/anterior (tela e volante) e a passagem automatica
+   ficam na pasta. O VLC nao publica a fila a tempo de pular nela, por isso a lista ja
+   comeca na musica escolhida.
+ - O player e o cartao da tela inicial mostram so o nome da faixa (Midia.nomeFaixa).
+ - Musica toca pelo VLC por tras; o painel direito mostra capa, progresso e controles.
  - O VLC leva alguns segundos para responder na primeira conexao.
  - Videos: lista os videos do pendrive (copias com mesmo nome e tamanho aparecem
    uma vez so) e toca no player proprio (Video.java, MediaPlayer do Android).
@@ -127,6 +141,10 @@ Volume na re (Re.java, iniciado pelo Guard; barra em Ajustes > Som > "Volume na 
    ate o volume salvo (prefs "som"/"reSalvo").
  - AudioManager.enableBackcarVolumePolicy(false) e chamado, mas a regra de fabrica
    continua ativa; o que resolve e o audio_rev_volume = 100.
+ - CAMERA DE RE PRETA: a matriz de cor da tela (cores vivas / modo noturno, transacao
+   1015 do SurfaceFlinger) faz a tela toda ser montada pela GPU Mali, que nao desenha
+   o formato de video da camera (YUV 0x10c). Por isso, ao engatar a re, o Re.java
+   chama ModoNoite.re(true), que tira a matriz; ao sair, ela volta com transicao suave.
 
 BT Musica nova (activity .BtMusica, icone "BT Musica" na tela inicial)
  - Le a sessao de midia do Bluetooth (com.android.bluetooth): musica, artista,
@@ -158,6 +176,14 @@ Troca de fonte sem abrir apps de fabrica (classe Fonte)
    Tambem NAO pegar o foco de audio pelo app proprio: o Bluetooth perde o
    foco e manda pause na hora (era o problema do "play que volta a pausar").
  - "Voltar" do Radio, BT Musica e Midia vai sempre para a tela inicial.
+
+Voltar a tocar o pendrive ao ligar (Retomar.java)
+ - A central nao reinicia ao desligar a ignicao, ela dorme ("quick boot"): o sistema
+   manda autochips.intent.action.QB_POWEROFF ao desligar e QB_POWERON ao ligar.
+ - Ao desligar, o app anota a fonte atual. Ao ligar, se era o VLC (pendrive), espera o
+   pendrive montar e manda play ao VLC, que carrega a ultima lista e volta a posicao.
+   Plano B: broadcast org.videolan.vlc.remote.LastPlaylist.
+   Ver no log: adb shell logcat -d -s LogoCopy | findstr retomar
 
 Fuso horario
  - America/Fortaleza (= horario de Brasilia, UTC-3). Nao usar America/Sao_Paulo:

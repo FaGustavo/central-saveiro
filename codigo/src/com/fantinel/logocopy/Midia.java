@@ -39,8 +39,8 @@ import java.util.List;
 // Tela "Mídia": biblioteca do VLC no estilo da central (o VLC toca por trás).
 public class Midia extends Activity {
     static final String VLC = "org.videolan.vlc";
-    static final String R_BIB = "//org.videolan.vlc/r/l", R_INICIO = "//org.videolan.vlc/r/home",
-            R_LISTAS = "//org.videolan.vlc/r/playlist", VIDEOS = "videos";
+    // "Biblioteca" = pastas do pendrive (lidas direto do pendrive); ids de pasta = caminho absoluto
+    static final String PEN = "pendrive", VIDEOS = "videos";
     static final int ACCENT = Color.rgb(64, 170, 255), MUTED = Color.rgb(190, 198, 210);
 
     final Handler h = new Handler();
@@ -52,7 +52,7 @@ public class Midia extends Activity {
     Home.Icon prev, play, next;
     ListView lista;
     Lista adapter;
-    TextView[] abas = new TextView[4];
+    TextView[] abas = new TextView[2];
     final List<String> pilha = new ArrayList<>();   // caminho de navegação (ids)
     final List<String> nomes = new ArrayList<>();
     Object capaKey;
@@ -60,7 +60,7 @@ public class Midia extends Activity {
 
     // item da lista: vem do VLC (MediaItem) ou é um vídeo local
     static class Item {
-        String id, titulo, sub; boolean pasta; Uri icone; Bitmap bmp; File arquivo;
+        String id, titulo, sub; boolean pasta; Uri icone; Bitmap bmp; File arquivo, musica;
     }
 
     @Override
@@ -86,15 +86,15 @@ public class Midia extends Activity {
         LinearLayout esq = new LinearLayout(this);
         esq.setOrientation(LinearLayout.VERTICAL);
         LinearLayout tabs = new LinearLayout(this);
-        String[] nomesAbas = {"Biblioteca", "Início", "Listas", "Vídeos"};
-        String[] ids = {R_BIB, R_INICIO, R_LISTAS, VIDEOS};
-        for (int i = 0; i < 4; i++) {
+        String[] nomesAbas = {"Biblioteca", "Vídeos"};
+        String[] ids = {PEN, VIDEOS};
+        for (int i = 0; i < abas.length; i++) {
             final String id = ids[i], nome = nomesAbas[i];
             TextView t = pill(nome);
             t.setOnClickListener(v -> abrirRaiz(id, nome));
             abas[i] = t;
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
-            lp.setMargins(0, 0, dp(10), 0);
+            lp.setMargins(0, 0, dp(14), 0);
             tabs.addView(t, lp);
         }
         esq.addView(tabs);
@@ -102,11 +102,11 @@ public class Midia extends Activity {
         LinearLayout nav = new LinearLayout(this);
         nav.setGravity(Gravity.CENTER_VERTICAL);
         nav.setPadding(0, dp(14), 0, dp(8));
-        voltar = text(20, ACCENT, true);
+        voltar = text(24, ACCENT, true);
         voltar.setText("‹ Voltar");
-        voltar.setPadding(0, 0, dp(18), 0);
+        voltar.setPadding(0, dp(6), dp(22), dp(6));
         voltar.setOnClickListener(v -> voltar());
-        cabecalho = text(22, Color.WHITE, true);
+        cabecalho = text(24, Color.WHITE, true);
         nav.addView(voltar);
         nav.addView(cabecalho, new LinearLayout.LayoutParams(0, -2, 1));
         esq.addView(nav);
@@ -136,7 +136,7 @@ public class Midia extends Activity {
         ag.setColor(Color.argb(60, 255, 255, 255)); ag.setCornerRadius(dp(18));
         capa.setBackground(ag);
         capa.setClipToOutline(true);
-        dir.addView(capa, new LinearLayout.LayoutParams(dp(330), dp(330)));
+        dir.addView(capa, new LinearLayout.LayoutParams(dp(290), dp(290)));
         titulo = text(28, Color.WHITE, true);
         titulo.setGravity(Gravity.CENTER);
         titulo.setEllipsize(TextUtils.TruncateAt.MARQUEE); titulo.setMarqueeRepeatLimit(-1); titulo.setSelected(true);
@@ -165,29 +165,60 @@ public class Midia extends Activity {
         prev.setOnClickListener(v -> controle(-1));
         play.setOnClickListener(v -> controle(0));
         next.setOnClickListener(v -> controle(1));
-        ctrls.addView(prev, new LinearLayout.LayoutParams(dp(80), dp(80)));
-        LinearLayout.LayoutParams pl = new LinearLayout.LayoutParams(dp(100), dp(100));
-        pl.setMargins(dp(28), 0, dp(28), 0);
+        ctrls.addView(prev, new LinearLayout.LayoutParams(dp(108), dp(108)));
+        LinearLayout.LayoutParams pl = new LinearLayout.LayoutParams(dp(136), dp(136));
+        pl.setMargins(dp(30), 0, dp(30), 0);
         ctrls.addView(play, pl);
-        ctrls.addView(next, new LinearLayout.LayoutParams(dp(80), dp(80)));
+        ctrls.addView(next, new LinearLayout.LayoutParams(dp(108), dp(108)));
         dir.addView(ctrls, new LinearLayout.LayoutParams(-1, -2));
         row.addView(dir, new LinearLayout.LayoutParams(0, -1, 1));
 
         setContentView(root);
 
-        carregando.setText("Abrindo a biblioteca…");
+        abrirRaiz(PEN, "Biblioteca");   // as pastas vêm do pendrive; o VLC só toca
         vb = new VlcBiblioteca(getApplicationContext());
         vb.conectar(ok -> {
-            if (!ok) { carregando.setText("Não foi possível abrir a biblioteca do VLC"); return; }
+            if (!ok) { Log.e("LogoCopy", "midia: vlc não conectou"); return; }
             ctl = vb.controle();
-            abrirRaiz(R_BIB, "Biblioteca");
         });
     }
 
     @Override
-    protected void onResume() { super.onResume(); h.removeCallbacks(tick); h.post(tick); }
+    protected void onResume() {
+        super.onResume();
+        h.removeCallbacks(tick); h.post(tick);
+        android.content.IntentFilter f = new android.content.IntentFilter();
+        f.addAction(Intent.ACTION_MEDIA_MOUNTED);
+        f.addAction(Intent.ACTION_MEDIA_UNMOUNTED);
+        f.addAction(Intent.ACTION_MEDIA_REMOVED);
+        f.addAction(Intent.ACTION_MEDIA_BAD_REMOVAL);
+        f.addAction(Intent.ACTION_MEDIA_EJECT);
+        f.addDataScheme("file");
+        registerReceiver(usb, f);
+        // trocaram o pendrive com a tela fechada
+        if (pensVistos != null && !pensVistos.equals(pendrives().toString())) recarregarPendrive.run();
+    }
+
+    // pendrive colocado/tirado: volta para o começo da aba (as pastas antigas não existem mais)
+    String pensVistos;
+    final Runnable recarregarPendrive = () -> {
+        String raiz = pilha.isEmpty() ? PEN : pilha.get(0);
+        if (VIDEOS.equals(raiz)) abrirRaiz(VIDEOS, "Vídeos"); else abrirRaiz(PEN, "Biblioteca");
+    };
+    final android.content.BroadcastReceiver usb = new android.content.BroadcastReceiver() {
+        @Override public void onReceive(Context c, Intent i) {
+            Log.i("LogoCopy", "midia: " + i.getAction());
+            h.removeCallbacks(recarregarPendrive);
+            h.postDelayed(recarregarPendrive, 1500);   // dá tempo do pendrive montar
+        }
+    };
     @Override
-    protected void onPause() { super.onPause(); h.removeCallbacks(tick); }
+    protected void onPause() {
+        super.onPause();
+        h.removeCallbacks(tick);
+        try { unregisterReceiver(usb); } catch (Throwable t) {}
+        pensVistos = pendrives().toString();
+    }
     @Override
     protected void onDestroy() { super.onDestroy(); vb.desconectar(); }
     @Override
@@ -196,7 +227,7 @@ public class Midia extends Activity {
     // ---------- navegação ----------
     void abrirRaiz(String id, String nome) {
         pilha.clear(); nomes.clear();
-        for (int i = 0; i < 4; i++) marcar(abas[i], abas[i].getText().toString().equals(nome));
+        for (TextView a : abas) marcar(a, a.getText().toString().equals(nome));
         entrar(id, nome);
     }
 
@@ -220,24 +251,109 @@ public class Midia extends Activity {
         carregando.setText("Carregando…");
         carregando.setVisibility(View.VISIBLE);
         if (VIDEOS.equals(id)) { carregarVideos(); return; }
-        if (ctl == null) return;
-        vb.listar(id, (pai, itens) -> {
-            if (!pai.equals(pilha.get(pilha.size() - 1))) return;
+        carregarPasta(id);
+    }
+
+    // ---------- pastas do pendrive ----------
+    static final String[] AUDIO = {".mp3", ".m4a", ".aac", ".flac", ".ogg", ".opus", ".wav", ".wma", ".amr"};
+
+    static boolean ehMusica(File f) {
+        String n = f.getName().toLowerCase();
+        for (String e : AUDIO) if (n.endsWith(e)) return true;
+        return false;
+    }
+
+    // pendrives montados (/storage/XXXX-XXXX)
+    static List<File> pendrives() {
+        List<File> l = new ArrayList<>();
+        File[] vols = new File("/storage").listFiles();
+        if (vols != null) for (File v : vols) {
+            if (v.getName().equals("emulated") || v.getName().equals("self") || !v.isDirectory() || v.listFiles() == null) continue;
+            try {   // sdcard0 é um atalho para a memória interna, não é pendrive
+                if (!v.getCanonicalPath().equals(v.getAbsolutePath())) continue;
+            } catch (Throwable t) { continue; }
+            l.add(v);
+        }
+        return l;
+    }
+
+    void carregarPasta(String id) {
+        new Thread(() -> {
             List<Item> l = new ArrayList<>();
-            for (MediaBrowser.MediaItem m : itens) {
-                if (m.getMediaId() != null && m.getMediaId().contains("/r/error/")) continue;
-                MediaDescription d = m.getDescription();
-                Item it = new Item();
-                it.id = m.getMediaId();
-                it.titulo = String.valueOf(d.getTitle());
-                it.sub = d.getSubtitle() == null ? "" : String.valueOf(d.getSubtitle());
-                it.pasta = m.isBrowsable();
-                it.bmp = d.getIconBitmap();
-                it.icone = d.getIconUri();
-                l.add(it);
-            }
-            mostrar(l, "Nada aqui ainda");
-        });
+            String vazio = "Pasta vazia";
+            if (PEN.equals(id)) {
+                List<File> vols = pendrives();
+                if (vols.isEmpty()) vazio = "Nenhum pendrive encontrado";
+                else if (vols.size() == 1) listarPasta(vols.get(0), l);
+                else for (int i = 0; i < vols.size(); i++) l.add(itemPasta(vols.get(i), "Pendrive " + (i + 1)));
+            } else listarPasta(new File(id), l);
+            final String vz = vazio;
+            h.post(() -> { if (id.equals(pilha.get(pilha.size() - 1))) mostrar(l, vz); });
+        }).start();
+    }
+
+    Item itemPasta(File d, String nome) {
+        Item it = new Item();
+        it.id = d.getAbsolutePath();
+        it.titulo = nome;
+        it.pasta = true;
+        it.sub = "";
+        return it;
+    }
+
+    // pastas primeiro, depois as músicas; tudo em ordem alfabética
+    void listarPasta(File d, List<Item> l) {
+        File[] fs = d.listFiles();
+        if (fs == null) return;
+        List<File> pastas = new ArrayList<>(), musicas = new ArrayList<>();
+        for (File f : fs) {
+            String n = f.getName();
+            if (n.startsWith(".") || n.startsWith("$") || n.equals("Android") || n.equals("LOST.DIR")
+                    || n.equals("System Volume Information")) continue;
+            if (f.isDirectory()) pastas.add(f);
+            else if (ehMusica(f)) musicas.add(f);
+        }
+        java.util.Comparator<File> nome = (a, b) -> a.getName().compareToIgnoreCase(b.getName());
+        java.util.Collections.sort(pastas, nome);
+        java.util.Collections.sort(musicas, nome);
+        for (File p : pastas) l.add(itemPasta(p, p.getName()));
+        for (File f : musicas) {
+            Item it = new Item();
+            it.musica = f;
+            it.titulo = f.getName().contains(".") ? f.getName().substring(0, f.getName().lastIndexOf('.')) : f.getName();
+            it.sub = "";
+            l.add(it);
+        }
+    }
+
+    // Toca a música dentro da pasta: manda ao VLC uma lista (.m3u8) com todas as músicas da pasta,
+    // assim o próximo/anterior (tela e volante) e a passagem automática ficam na pasta.
+    void tocarMusica(Item it) {
+        if (ctl == null) { carregando.setText("O VLC ainda está abrindo, tente de novo"); carregando.setVisibility(View.VISIBLE); return; }
+        List<File> fs = new ArrayList<>();
+        for (Item x : adapter.itens) if (x.musica != null) fs.add(x.musica);
+        int idx = Math.max(0, fs.indexOf(it.musica));
+        try {
+            // a lista já começa na música escolhida (o VLC não publica a fila a tempo de pular nela):
+            // escolhida, as seguintes, e depois as do começo da pasta
+            File m3u = new File(getExternalFilesDir(null), "pasta.m3u8");
+            StringBuilder sb = new StringBuilder("#EXTM3U\n");
+            for (int n = 0; n < fs.size(); n++) sb.append(fs.get((idx + n) % fs.size()).getAbsolutePath()).append('\n');
+            try (java.io.FileOutputStream o = new java.io.FileOutputStream(m3u)) { o.write(sb.toString().getBytes("UTF-8")); }
+            ctl.getTransportControls().playFromUri(Uri.fromFile(m3u), null);
+            Log.i("LogoCopy", "midia: pasta com " + fs.size() + " músicas, começando na " + (idx + 1));
+        } catch (Throwable t) { Log.e("LogoCopy", "midia: tocar pasta", t); }
+    }
+
+    // nome da faixa sem caminho, sem extensão e sem %20
+    static String nomeFaixa(String t) {
+        if (t == null) return "";
+        try { t = Uri.decode(t); } catch (Throwable e) {}
+        int b = t.lastIndexOf('/');
+        if (b >= 0) t = t.substring(b + 1);
+        String l = t.toLowerCase();
+        for (String e : AUDIO) if (l.endsWith(e)) return t.substring(0, t.length() - e.length());
+        return t;
     }
 
     void mostrar(List<Item> l, String vazio) {
@@ -360,7 +476,7 @@ public class Midia extends Activity {
             return;
         }
         if (it.pasta) { entrar(it.id, it.titulo); return; }
-        if (ctl != null) ctl.getTransportControls().playFromMediaId(it.id, null);
+        if (it.musica != null) tocarMusica(it);
     }
 
     // ---------- tocando agora ----------
@@ -390,9 +506,10 @@ public class Midia extends Activity {
             barra.setProgress(0); tempo.setText(""); total.setText("");
             return;
         }
-        if (!t.equals(titulo.getText().toString())) titulo.setText(t);
         String ar = md.getString(MediaMetadata.METADATA_KEY_ARTIST), al = md.getString(MediaMetadata.METADATA_KEY_ALBUM);
-        artista.setText(TextUtils.isEmpty(ar) ? (al == null ? "" : al) : (TextUtils.isEmpty(al) ? ar : ar + "  •  " + al));
+        t = nomeFaixa(t);   // só o nome da faixa
+        if (!t.equals(titulo.getText().toString())) titulo.setText(t);
+        artista.setText("");
         boolean tocando = st != null && st.getState() == PlaybackState.STATE_PLAYING;
         play.setKind(tocando ? Home.Icon.PAUSE : Home.Icon.PLAY);
         long dur = md.getLong(MediaMetadata.METADATA_KEY_DURATION), pos = st == null ? 0 : st.getPosition();
@@ -444,7 +561,7 @@ public class Midia extends Activity {
             Item it = itens.get(i);
             LinearLayout row = new LinearLayout(a);
             row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setPadding(a.dp(10), a.dp(8), a.dp(10), a.dp(8));
+            row.setPadding(a.dp(12), a.dp(10), a.dp(12), a.dp(10));
             GradientDrawable g = new GradientDrawable();
             g.setCornerRadius(a.dp(12)); g.setColor(Color.argb(45, 255, 255, 255));
             row.setBackground(g);
@@ -455,15 +572,15 @@ public class Midia extends Activity {
             iv.setBackground(ig);
             iv.setClipToOutline(true);
             a.icone(it, iv);
-            row.addView(iv, new LinearLayout.LayoutParams(a.dp(64), a.dp(64)));
+            row.addView(iv, new LinearLayout.LayoutParams(a.dp(92), a.dp(92)));
             LinearLayout tx = new LinearLayout(a);
             tx.setOrientation(LinearLayout.VERTICAL);
-            tx.setPadding(a.dp(16), 0, a.dp(8), 0);
-            TextView t1 = a.text(20, Color.WHITE, true); t1.setText(it.titulo);
-            TextView t2 = a.text(15, MUTED, false); t2.setText(it.sub);
+            tx.setPadding(a.dp(20), 0, a.dp(8), 0);
+            TextView t1 = a.text(24, Color.WHITE, true); t1.setText(it.titulo);
+            TextView t2 = a.text(17, MUTED, false); t2.setText(it.sub);
             tx.addView(t1); if (!it.sub.isEmpty()) tx.addView(t2);
             row.addView(tx, new LinearLayout.LayoutParams(0, -2, 1));
-            if (it.pasta) { TextView seta = a.text(28, MUTED, false); seta.setText("›"); row.addView(seta); }
+            if (it.pasta) { TextView seta = a.text(36, MUTED, false); seta.setText("›"); row.addView(seta); }
             FrameLayout wrap = new FrameLayout(a);
             wrap.setPadding(0, a.dp(4), 0, a.dp(4));
             wrap.addView(row);
@@ -474,6 +591,13 @@ public class Midia extends Activity {
     // capa/ícone do item: bitmap do VLC, imagem pelo endereço do VLC (em segundo plano) ou capa gerada
     void icone(Item it, ImageView iv) {
         if (it.bmp != null) { iv.setImageBitmap(it.bmp); return; }
+        if (it.pasta && it.icone == null) {   // pasta do pendrive
+            iv.setImageResource(getResources().getIdentifier("ic_pasta", "drawable", getPackageName()));
+            iv.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            iv.setPadding(dp(16), dp(16), dp(16), dp(16));
+            iv.setBackground(Home.fundoIcone(Color.rgb(255, 160, 40), dp(12)));
+            return;
+        }
         if (it.arquivo != null) { iv.setImageResource(getResources().getIdentifier("g_play", "drawable", getPackageName())); iv.setPadding(dp(10), dp(10), dp(10), dp(10)); iv.setBackground(Home.fundoIcone(Color.rgb(64, 120, 255), dp(8))); return; }
         String k = it.icone == null ? null : it.icone.toString();
         Bitmap c = k == null ? null : cache.get(k);
@@ -506,9 +630,9 @@ public class Midia extends Activity {
     }
 
     TextView pill(String s) {
-        TextView t = text(18, Color.WHITE, true);
+        TextView t = text(22, Color.WHITE, true);
         t.setText(s);
-        t.setPadding(dp(20), dp(10), dp(20), dp(10));
+        t.setPadding(dp(30), dp(14), dp(30), dp(14));
         marcar(t, false);
         return t;
     }

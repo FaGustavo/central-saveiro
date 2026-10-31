@@ -30,6 +30,22 @@ public class Guard extends Service {
         c.getSharedPreferences("guard", 0).edit().putBoolean("on", on).commit();
     }
 
+    // ZLink escolhido no menu do DiPlay: o z-link precisa ficar ligado (o vigia para de desligá-lo).
+    // Com ele ligado a porta USB pode travar em modo host e o ADB cai. Escolher DiPlay volta ao normal.
+    static boolean zlinkEmUso(Context c) {
+        return c.getSharedPreferences("guard", 0).getBoolean("zlinkUso", false);
+    }
+
+    static void usarZlink(Context c, boolean on) {
+        c.getSharedPreferences("guard", 0).edit().putBoolean("zlinkUso", on).commit();
+        try {
+            if (on) c.getPackageManager().setApplicationEnabledSetting(Home.ZLINK,
+                    android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED, 0);
+            set(KEY, on ? "1" : "0");
+            Log.i(TAG, "zlink em uso = " + on);
+        } catch (Throwable t) { Log.e(TAG, "usar zlink", t); }
+    }
+
     static String get(String k) throws Exception {
         Class<?> sp = Class.forName("android.os.SystemProperties");
         return (String) sp.getMethod("get", String.class).invoke(null, k);
@@ -46,6 +62,7 @@ public class Guard extends Service {
         ModoNoite.iniciar(this);
         Fonte.liberarSempre(Fonte.RADIO); // o serviço do rádio de fábrica não pode ser encerrado por ócio
         Re.iniciar(this);                  // volume na ré com descida gradual
+        Som.ouvirVolume(this);             // volume suave nos níveis baixos
         // reaplica o som depois que o app original aplicar o dele
         if (intent == null || intent.getBooleanExtra("som", false)) {
             new Thread(() -> {
@@ -61,7 +78,7 @@ public class Guard extends Service {
                 Log.i(TAG, "vigia do z-link ligado");
                 while (running && enabled(this)) {
                     try {
-                        if (!"0".equals(get(KEY))) {
+                        if (!zlinkEmUso(this) && !"0".equals(get(KEY))) {
                             set(KEY, "0");
                             Log.i(TAG, "z-link desligado pelo vigia");
                         }

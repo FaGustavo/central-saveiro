@@ -16,7 +16,8 @@ Personalização completa de uma central multimídia Android genérica (chip **A
 - Sem barra de status. Ela aparece arrastando o dedo de cima para baixo.
 
 **Música e rádio**
-- **Mídia**: biblioteca de músicas e vídeos do pendrive (artistas, álbuns, faixas, listas, vídeos), no mesmo visual da central.
+- **Mídia**: as pastas e músicas do pendrive, com ícones e botões grandes. Ao tocar uma música, a pasta vira a fila (próximo, anterior e passagem automática, também pelo volante). Atualiza sozinha ao trocar o pendrive e mostra só o nome da faixa.
+- **Volta a tocar o pendrive** ao ligar a ignição, de onde parou.
 - **Vídeos**: player próprio em tela cheia que, ao sair, continua tocando no cartão da tela inicial (mini player 16:9). Usa o decodificador de hardware: converta os vídeos para .mp4 H.264 720p (os .mkv VP9 do YouTube vão por software e pesam no processador).
 - **Rádio** novo: frequência grande, nome da estação, régua para arrastar, busca de estações e 6 memórias. Cada estação tem uma cor própria.
 - **BT Música** nova: música, artista, álbum e progresso do celular conectado. Mostra a capa real quando o Spotify da central está espelhando o celular.
@@ -24,6 +25,7 @@ Personalização completa de uma central multimídia Android genérica (chip **A
 
 **Som**
 - App **Som** com grave, médio e agudo de -30 a +30 dB, loudness, subwoofer (liga/desliga; nível e corte ficam no módulo do sub), balanço e fader. Ele substitui o DSP de fábrica, que tinha um equalizador que não funcionava de verdade.
+- **Volume suave**: os primeiros níveis de volume não dão mais saltos grandes (ajustável no app Som).
 - **Volume na ré**: ao engatar a ré, o som desce aos poucos até o nível escolhido no app Som e volta aos poucos ao sair. A central de fábrica cortava o som de uma vez.
 - Os ajustes voltam sozinhos sempre que a central liga.
 
@@ -35,7 +37,8 @@ Personalização completa de uma central multimídia Android genérica (chip **A
 **Segurança e praticidade**
 - Aviso grande em vermelho na tela quando a bateria do carro cai abaixo de 11,5 V.
 - Logo de abertura com uma foto da própria Saveiro.
-- CarPlay e Android Auto sem fio pelo **DiPlay**, com imagem bem melhor que a do app de fábrica.
+- CarPlay e Android Auto sem fio: o botão DiPlay abre um menu para escolher **DiPlay** ou **ZLink**. Com o ZLink, o cartão da tela inicial mostra "CarPlay".
+- **Câmera de ré** funcionando junto com as cores vivas e o modo noturno (o ajuste de cor sai na ré).
 - Hora certa no fuso de Brasília.
 
 **Mais leve**
